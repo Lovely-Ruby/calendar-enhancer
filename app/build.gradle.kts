@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    // 【在这里手动添加这一行】
+    alias(libs.plugins.kotlin.ksp) // 换成这一行
 }
 
 android {
@@ -56,4 +58,16 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
+    val room_version = "2.6.1"
+    implementation("androidx.room:room-runtime:$room_version")
+    implementation("androidx.room:room-ktx:$room_version")
+    // 如果你用的是 Kotlin, 必须要这个注解处理器
+    ksp("androidx.room:room-compiler:$room_version")
+    // 如果你的项目用的是 KSP (现代安卓推荐), 将上一行换成:
+    // ksp("androidx.room:room-compiler:$room_version")
+
+    // 还需要这个来支持 Compose 的状态收集
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
+    implementation("androidx.compose.runtime:runtime-livedata:1.6.0")
 }

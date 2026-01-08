@@ -5,7 +5,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -19,18 +20,54 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.room.*
 import com.example.calendarenhancer.ui.theme.CalendarEnhancerTheme
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import java.util.*
 
-data class BirthdayPerson(
-    val id: Int,
+// --- 1. 数据库定义 (保持简洁) ---
+@Entity(tableName = "birthdays")
+data class BirthdayEntity(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val name: String,
-    val birthdayTag: String,
-    val daysRemaining: Int
+    val dateStr: String
 )
 
+@Dao
+interface BirthdayDao {
+    @Query("SELECT * FROM birthdays")
+    fun getAll(): Flow<List<BirthdayEntity>>
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(person: BirthdayEntity)
+    @Delete
+    suspend fun delete(person: BirthdayEntity)
+    @Update
+    suspend fun update(person: BirthdayEntity)
+}
+
+@Database(entities = [BirthdayEntity::class], version = 1, exportSchema = false)
+abstract class AppDatabase : RoomDatabase() {
+    abstract fun birthdayDao(): BirthdayDao
+}
+
+// 单例模式，确保只创建一个数据库实例
+object DatabaseProvider {
+    @Volatile
+    private var instance: AppDatabase? = null
+    fun get(context: android.content.Context): AppDatabase {
+        return instance ?: synchronized(this) {
+            instance ?: Room.databaseBuilder(
+                context.applicationContext,
+                AppDatabase::class.java, "birthday_db"
+            ).fallbackToDestructiveMigration().build().also { instance = it }
+        }
+    }
+}
+
+// --- 2. 主页面 ---
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,41 +75,48 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             CalendarEnhancerTheme {
-                val birthdayList = remember {
-                    mutableStateListOf(
-                        BirthdayPerson(1, "张三", "10-24", calculateDays("10-24")),
-                        BirthdayPerson(2, "李四", "02-14", calculateDays("02-14"))
-                    )
-                }
+                val context = LocalContext.current
+                // 使用 remember 确保数据库只初始化一次
+                val db = remember { DatabaseProvider.get(context) }
+                val dao = remember { db.birthdayDao() }
+                val scope = rememberCoroutineScope()
+
+                // 观察数据库，initial 设置为空列表避免空指针
+                val rawList by dao.getAll().collectAsState(initial = emptyList())
 
                 var showDialog by remember { mutableStateOf(false) }
+                var editingEntity by remember { mutableStateOf<BirthdayEntity?>(null) }
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     topBar = { CenterAlignedTopAppBar(title = { Text("生日增强器") }) },
                     floatingActionButton = {
-                        FloatingActionButton(onClick = { showDialog = true }) {
-                            Icon(Icons.Default.Add, contentDescription = "添加")
-                        }
+                        FloatingActionButton(onClick = {
+                            editingEntity = null
+                            showDialog = true
+                        }) { Icon(Icons.Default.Add, "添加") }
                     }
                 ) { innerPadding ->
+                    // 渲染列表
                     BirthdayListScreen(
                         modifier = Modifier.padding(innerPadding),
-                        list = birthdayList
+                        list = rawList,
+                        onDelete = { entity -> scope.launch { dao.delete(entity) } },
+                        onEdit = { entity ->
+                            editingEntity = entity
+                            showDialog = true
+                        }
                     )
 
                     if (showDialog) {
-                        AddBirthdayDialog(
+                        AddOrEditDialog(
+                            initialEntity = editingEntity,
                             onDismiss = { showDialog = false },
-                            onConfirm = { name, date ->
-                                birthdayList.add(
-                                    BirthdayPerson(
-                                        id = birthdayList.size + 1,
-                                        name = name,
-                                        birthdayTag = date,
-                                        daysRemaining = calculateDays(date)
-                                    )
-                                )
+                            onConfirm = { name, date, id ->
+                                scope.launch {
+                                    if (id == 0) dao.insert(BirthdayEntity(name = name, dateStr = date))
+                                    else dao.update(BirthdayEntity(id = id, name = name, dateStr = date))
+                                }
                                 showDialog = false
                             }
                         )
@@ -83,121 +127,77 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// 辅助函数：计算公历生日距离今天还有几天 (前端逻辑类似)
-fun calculateDays(dateStr: String): Int {
-    val today = LocalDate.now()
-    val parts = dateStr.split("-")
-    val month = parts[0].toInt()
-    val day = parts[1].toInt()
+// --- 3. UI 组件 ---
 
-    // 先假设是今年的生日
-    var nextBirthday = LocalDate.of(today.year, month, day)
-
-    // 如果今年的生日已经过了，就计算明年的
-    if (nextBirthday.isBefore(today) || nextBirthday.isEqual(today)) {
-        nextBirthday = nextBirthday.plusYears(1)
-    }
-
-    return ChronoUnit.DAYS.between(today, nextBirthday).toInt()
-}
-
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun AddBirthdayDialog(onDismiss: () -> Unit, onConfirm: (String, String) -> Unit) {
-    var name by remember { mutableStateOf("") }
-    var selectedDate by remember { mutableStateOf("") } // 格式: MM-dd
+fun BirthdayItem(entity: BirthdayEntity, onDelete: () -> Unit, onEdit: () -> Unit) {
+    var showMenu by remember { mutableStateOf(false) }
+    // 计算倒计时天数
+    val days = remember(entity.dateStr) { calculateDays(entity.dateStr) }
 
-    val context = LocalContext.current
-    val calendar = Calendar.getInstance()
-
-    // 定义日期选择器弹窗
-    val datePickerDialog = DatePickerDialog(
-        context,
-        { _, year, month, dayOfMonth ->
-            // 注意：月份从0开始，所以要+1
-            val formattedDate = String.format("%02d-%02d", month + 1, dayOfMonth)
-            selectedDate = formattedDate
-        },
-        calendar.get(Calendar.YEAR),
-        calendar.get(Calendar.MONTH),
-        calendar.get(Calendar.DAY_OF_MONTH)
-    )
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("新增生日") },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("姓名") },
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
-                )
-
-                // 只读的输入框，点击触发日期选择器
-                OutlinedTextField(
-                    value = if (selectedDate.isEmpty()) "点击选择日期" else selectedDate,
-                    onValueChange = {},
-                    label = { Text("生日日期") },
-                    readOnly = true,
-                    enabled = false, // 禁用原生输入
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { datePickerDialog.show() } // 点击弹出
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                if (name.isNotBlank() && selectedDate.isNotBlank()) {
-                    onConfirm(name, selectedDate)
-                }
-            }) {
-                Text("确定")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
-        }
-    )
-}
-
-// --- 以下 BirthdayListScreen 和 BirthdayItem 保持不变 ---
-@Composable
-fun BirthdayListScreen(modifier: Modifier = Modifier, list: List<BirthdayPerson>) {
-    LazyColumn(modifier = modifier.fillMaxSize()) {
-        items(list, key = { it.id }) { person ->
-            BirthdayItem(person)
-        }
-    }
-}
-
-@Composable
-fun BirthdayItem(person: BirthdayPerson) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .combinedClickable(onClick = onEdit, onLongClick = { showMenu = true })
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp).fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column {
-                Text(text = person.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text(text = "公历: ${person.birthdayTag}", color = Color.Gray)
+        Box(Modifier.padding(16.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column {
+                    Text(entity.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("日期: ${entity.dateStr}", color = Color.Gray)
+                }
+                Text("${days}天后", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.headlineSmall)
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = "${person.daysRemaining}",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = if (person.daysRemaining < 10) Color.Red else MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Black
-                )
-                Text(text = "天后", style = MaterialTheme.typography.labelSmall)
+            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                DropdownMenuItem(text = { Text("删除", color = Color.Red) }, onClick = { onDelete(); showMenu = false })
             }
         }
     }
+}
+
+@Composable
+fun BirthdayListScreen(modifier: Modifier, list: List<BirthdayEntity>, onDelete: (BirthdayEntity) -> Unit, onEdit: (BirthdayEntity) -> Unit) {
+    LazyColumn(modifier = modifier.fillMaxSize()) {
+        items(list, key = { it.id }) { entity ->
+            BirthdayItem(entity, onDelete = { onDelete(entity) }, onEdit = { onEdit(entity) })
+        }
+    }
+}
+
+@Composable
+fun AddOrEditDialog(initialEntity: BirthdayEntity?, onDismiss: () -> Unit, onConfirm: (String, String, Int) -> Unit) {
+    var name by remember { mutableStateOf(initialEntity?.name ?: "") }
+    var date by remember { mutableStateOf(initialEntity?.dateStr ?: "") }
+    val context = LocalContext.current
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (initialEntity == null) "新增生日" else "编辑生日") },
+        text = {
+            Column {
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("姓名") })
+                Spacer(Modifier.height(8.dp))
+                Button(onClick = {
+                    val cal = Calendar.getInstance()
+                    DatePickerDialog(context, { _, _, m, d -> date = String.format("%02d-%02d", m + 1, d) },
+                        cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
+                }) { Text(if(date.isEmpty()) "选择日期" else date) }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { if(name.isNotBlank() && date.isNotBlank()) onConfirm(name, date, initialEntity?.id ?: 0) }) { Text("确定") }
+        }
+    )
+}
+
+fun calculateDays(dateStr: String): Int {
+    return try {
+        val today = LocalDate.now()
+        val parts = dateStr.split("-")
+        var target = LocalDate.of(today.year, parts[0].toInt(), parts[1].toInt())
+        if (target.isBefore(today)) target = target.plusYears(1)
+        ChronoUnit.DAYS.between(today, target).toInt()
+    } catch (e: Exception) { 0 }
 }
