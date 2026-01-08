@@ -50,8 +50,8 @@ class MainActivity : ComponentActivity() {
 
 // 模拟数据
 val mockData = listOf(
-    BirthdayPerson(1, "张三", "农历正月初五", 3),
-    BirthdayPerson(2, "李四", "02-14", 12),
+    BirthdayPerson(1, "张三123", "农历正月初五", 3),
+    BirthdayPerson(2, "李四1", "02-14", 12),
     BirthdayPerson(3, "王五", "农历八月十六", 150),
     BirthdayPerson(4, "老同事", "05-20", 45)
 )
