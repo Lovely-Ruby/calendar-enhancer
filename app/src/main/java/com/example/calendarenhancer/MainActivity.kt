@@ -28,44 +28,9 @@ import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import java.util.*
 
-// --- 1. 数据库定义 (保持简洁) ---
-@Entity(tableName = "birthdays")
-data class BirthdayEntity(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val name: String,
-    val dateStr: String
-)
+import com.example.calendarenhancer.data.BirthdayEntity
+import com.example.calendarenhancer.data.DatabaseProvider
 
-@Dao
-interface BirthdayDao {
-    @Query("SELECT * FROM birthdays")
-    fun getAll(): Flow<List<BirthdayEntity>>
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(person: BirthdayEntity)
-    @Delete
-    suspend fun delete(person: BirthdayEntity)
-    @Update
-    suspend fun update(person: BirthdayEntity)
-}
-
-@Database(entities = [BirthdayEntity::class], version = 1, exportSchema = false)
-abstract class AppDatabase : RoomDatabase() {
-    abstract fun birthdayDao(): BirthdayDao
-}
-
-// 单例模式，确保只创建一个数据库实例
-object DatabaseProvider {
-    @Volatile
-    private var instance: AppDatabase? = null
-    fun get(context: android.content.Context): AppDatabase {
-        return instance ?: synchronized(this) {
-            instance ?: Room.databaseBuilder(
-                context.applicationContext,
-                AppDatabase::class.java, "birthday_db"
-            ).fallbackToDestructiveMigration().build().also { instance = it }
-        }
-    }
-}
 
 // --- 2. 主页面 ---
 class MainActivity : ComponentActivity() {
@@ -77,7 +42,7 @@ class MainActivity : ComponentActivity() {
             CalendarEnhancerTheme {
                 val context = LocalContext.current
                 // 使用 remember 确保数据库只初始化一次
-                val db = remember { DatabaseProvider.get(context) }
+                val db = rremember { DatabaseProvider.get(context) }
                 val dao = remember { db.birthdayDao() }
                 val scope = rememberCoroutineScope()
 
