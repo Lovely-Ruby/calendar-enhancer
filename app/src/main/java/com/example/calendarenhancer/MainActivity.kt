@@ -42,7 +42,7 @@ class MainActivity : ComponentActivity() {
             CalendarEnhancerTheme {
                 val context = LocalContext.current
                 // 使用 remember 确保数据库只初始化一次
-                val db = rremember { DatabaseProvider.get(context) }
+                val db = remember { DatabaseProvider.get(context) }
                 val dao = remember { db.birthdayDao() }
                 val scope = rememberCoroutineScope()
 
