@@ -22,6 +22,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import com.nlf.calendar.Lunar
 import com.nlf.calendar.Solar
+import com.nlf.calendar.LunarMonth
+import com.nlf.calendar.LunarYear
 
 // --- 3. UI 组件 ---
 @OptIn(ExperimentalFoundationApi::class)
@@ -153,14 +155,24 @@ fun calculateDays(dateStr: String, isLunar: Boolean): Int {
             target
         } else {
             val currentYear = today.year
+            
+            // 辅助函数：获取该年该月合法的农历日期（处理30日变29日的情况）
+            fun getValidLunar(y: Int, m: Int, d: Int): Lunar {
+                val lunarYear = LunarYear.fromYear(y)
+                val lunarMonth = lunarYear.getMonth(m)
+                val monthDays = lunarMonth?.dayCount ?: 30
+                return Lunar.fromYmd(y, m, if (d > monthDays) monthDays else d)
+            }
+
             // 尝试今年的阴历生日
-            val lunarThisYear = Lunar.fromYmd(currentYear, month, day)
+            val lunarThisYear = getValidLunar(currentYear, month, day)
             val solarThisYear = lunarThisYear.solar
             var target = LocalDate.of(solarThisYear.year, solarThisYear.month, solarThisYear.day)
             
             if (target.isBefore(today)) {
                 // 如果今年的已经过了，计算明年的
-                val lunarNextYear = Lunar.fromYmd(currentYear + 1, month, day)
+                
+                val lunarNextYear = getValidLunar(currentYear + 1, month, day)
                 val solarNextYear = lunarNextYear.solar
                 target = LocalDate.of(solarNextYear.year, solarNextYear.month, solarNextYear.day)
             }
