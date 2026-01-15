@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -57,16 +58,16 @@ class MainActivity : ComponentActivity() {
                         )
                     },
                     bottomBar = {
-                        NavigationBar {
+                        NavigationBar(
+                            modifier = Modifier.height(64.dp)
+                        ) {
                             NavigationBarItem(
                                 icon = { Icon(Icons.Default.List, "列表") },
-                                label = { Text("列表") },
                                 selected = currentRoute == "list" || currentRoute == null,
                                 onClick = { navController.navigate("list") }
                             )
                             NavigationBarItem(
                                 icon = { Icon(Icons.Default.Settings, "设置") },
-                                label = { Text("设置") },
                                 selected = currentRoute == "settings",
                                 onClick = { navController.navigate("settings") }
                             )
