@@ -24,6 +24,12 @@ import com.nlf.calendar.Lunar
 import com.nlf.calendar.Solar
 import com.nlf.calendar.LunarMonth
 import com.nlf.calendar.LunarYear
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import com.example.calendarenhancer.util.CalendarUtil
+import java.time.ZoneId
 
 // --- 3. UI 组件 ---
 @OptIn(ExperimentalFoundationApi::class)
@@ -39,6 +45,22 @@ fun BirthdayItem(entity: BirthdayEntity, onDelete: () -> Unit, onEdit: () -> Uni
             formatLunarDate(entity.dateStr)
         } else {
             entity.dateStr
+        }
+    }
+    
+    val context = LocalContext.current
+    
+    val syncAction = {
+        syncToCalendar(context, entity)
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions.values.all { it }) {
+            syncAction()
+        } else {
+            Toast.makeText(context, "需要日历权限才能同步", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -92,6 +114,17 @@ fun BirthdayItem(entity: BirthdayEntity, onDelete: () -> Unit, onEdit: () -> Uni
                 }
             }
             DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                DropdownMenuItem(text = { Text("同步到日历") }, onClick = {
+                    showMenu = false
+                    val hasRead = ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALENDAR) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                    val hasWrite = ContextCompat.checkSelfPermission(context, android.Manifest.permission.WRITE_CALENDAR) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                    
+                    if (hasRead && hasWrite) {
+                        syncAction()
+                    } else {
+                        permissionLauncher.launch(arrayOf(android.Manifest.permission.READ_CALENDAR, android.Manifest.permission.WRITE_CALENDAR))
+                    }
+                })
                 DropdownMenuItem(text = { Text("删除", color = Color.Red) }, onClick = { onDelete(); showMenu = false })
             }
         }
@@ -211,4 +244,51 @@ fun calculateDays(dateStr: String, isLunar: Boolean): Int {
         
         ChronoUnit.DAYS.between(today, targetDate).toInt()
     } catch (e: Exception) { 0 }
+}
+
+private fun syncToCalendar(context: android.content.Context, entity: BirthdayEntity) {
+    try {
+        val today = LocalDate.now()
+        val parts = entity.dateStr.split("-")
+        val month = if (parts.size == 3) parts[1].toInt() else parts[0].toInt()
+        val day = if (parts.size == 3) parts[2].toInt() else parts[1].toInt()
+
+        val targetDate: LocalDate = if (!entity.isLunar) {
+            var target = LocalDate.of(today.year, month, day)
+            if (target.isBefore(today)) target = target.plusYears(1)
+            target
+        } else {
+            val currentYear = today.year
+            
+            fun getValidLunar(y: Int, m: Int, d: Int): Lunar {
+                val lunarYear = LunarYear.fromYear(y)
+                val lunarMonth = lunarYear.getMonth(m)
+                val monthDays = lunarMonth?.dayCount ?: 30
+                return Lunar.fromYmd(y, m, if (d > monthDays) monthDays else d)
+            }
+
+            val lunarThisYear = getValidLunar(currentYear, month, day)
+            val solarThisYear = lunarThisYear.solar
+            var target = LocalDate.of(solarThisYear.year, solarThisYear.month, solarThisYear.day)
+            
+            if (target.isBefore(today)) {
+                val lunarNextYear = getValidLunar(currentYear + 1, month, day)
+                val solarNextYear = lunarNextYear.solar
+                target = LocalDate.of(solarNextYear.year, solarNextYear.month, solarNextYear.day)
+            }
+            target
+        }
+        
+        // Use 9:00 AM as the default time
+        val startTime = targetDate.atTime(9, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        
+        CalendarUtil.addCalendarEvent(
+            context,
+            "${entity.name} 生日",
+            "今天是 ${entity.name} 的生日，记得送上祝福！",
+            startTime
+        )
+    } catch (e: Exception) {
+        Toast.makeText(context, "日期计算错误: ${e.message}", Toast.LENGTH_SHORT).show()
+    }
 }
