@@ -31,6 +31,14 @@ fun BirthdayItem(entity: BirthdayEntity, onDelete: () -> Unit, onEdit: () -> Uni
     var showMenu by remember { mutableStateOf(false) }
     // 计算倒计时天数
     val days = remember(entity.dateStr, entity.isLunar) { calculateDays(entity.dateStr, entity.isLunar) }
+    // 格式化日期显示
+    val displayDate = remember(entity.dateStr, entity.isLunar) {
+        if (entity.isLunar) {
+            formatLunarDate(entity.dateStr)
+        } else {
+            entity.dateStr
+        }
+    }
 
     Card(
         modifier = Modifier
@@ -47,7 +55,7 @@ fun BirthdayItem(entity: BirthdayEntity, onDelete: () -> Unit, onEdit: () -> Uni
                             Text(" (阴历)", style = MaterialTheme.typography.bodySmall, color = Color.Magenta)
                         }
                     }
-                    Text("日期: ${entity.dateStr}", color = Color.Gray)
+                    Text("日期: $displayDate", color = Color.Gray)
                 }
                 Text("${days}天后", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.headlineSmall)
             }
@@ -88,9 +96,26 @@ fun AddOrEditDialog(initialEntity: BirthdayEntity?, onDismiss: () -> Unit, onCon
                 Spacer(Modifier.height(8.dp))
                 Button(onClick = {
                     val cal = Calendar.getInstance()
-                    DatePickerDialog(context, { _, _, m, d -> date = String.format("%02d-%02d", m + 1, d) },
-                        cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
-                }) { Text(if(date.isEmpty()) "选择日期" else date) }
+                    // 如果已有日期，解析出年月日作为初始值，否则用今天
+                    val (y, m, d) = if (date.contains("-") && date.split("-").size == 3) {
+                        val p = date.split("-")
+                        Triple(p[0].toInt(), p[1].toInt() - 1, p[2].toInt())
+                    } else {
+                        Triple(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH))
+                    }
+                    
+                    DatePickerDialog(context, { _, year, month, day -> 
+                        date = String.format("%d-%02d-%02d", year, month + 1, day) 
+                    }, y, m, d).show()
+                }) { 
+                    val label = if (date.isEmpty()) "选择出生日期" else {
+                        if (isLunar) "阴历: ${formatLunarDate(date)}" else "公历: $date"
+                    }
+                    Text(label) 
+                }
+                if (isLunar) {
+                    Text("提示：请在选择器中选择农历对应的公历年月日", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                }
             }
         },
         confirmButton = {
@@ -99,12 +124,28 @@ fun AddOrEditDialog(initialEntity: BirthdayEntity?, onDismiss: () -> Unit, onCon
     )
 }
 
+// 辅助函数：将 "1990-03-04" 转换为 "一九九〇(庚午)年三月初四"
+fun formatLunarDate(dateStr: String): String {
+    return try {
+        val parts = dateStr.split("-")
+        val year = parts[0].toInt()
+        val month = parts[1].toInt()
+        val day = parts[2].toInt()
+        
+        val lunar = Lunar.fromYmd(year, month, day)
+        "${lunar.yearInChinese}(${lunar.yearInGanZhi}${lunar.yearShengXiao})年${lunar.monthInChinese}月${lunar.dayInChinese}"
+    } catch (e: Exception) {
+        dateStr
+    }
+}
+
 fun calculateDays(dateStr: String, isLunar: Boolean): Int {
     return try {
         val today = LocalDate.now()
         val parts = dateStr.split("-")
-        val month = parts[0].toInt()
-        val day = parts[1].toInt()
+        // 兼容旧格式 MM-DD 和新格式 YYYY-MM-DD
+        val month = if (parts.size == 3) parts[1].toInt() else parts[0].toInt()
+        val day = if (parts.size == 3) parts[2].toInt() else parts[1].toInt()
 
         val targetDate = if (!isLunar) {
             var target = LocalDate.of(today.year, month, day)
