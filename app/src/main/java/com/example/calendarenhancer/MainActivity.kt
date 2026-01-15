@@ -121,6 +121,14 @@ class MainActivity : ComponentActivity() {
                                 onEdit = { entity ->
                                     editingEntity = entity
                                     showDialog = true
+                                },
+                                onTogglePin = { entity ->
+                                    scope.launch {
+                                        val newStatus = !entity.isPinned
+                                        dao.updatePinStatus(entity.id, newStatus)
+                                        // 添加提示
+                                        android.widget.Toast.makeText(context, if (newStatus) "已置顶" else "已取消置顶", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
                                 }
                             )
                         }
@@ -141,7 +149,19 @@ class MainActivity : ComponentActivity() {
                             onDismiss = { showDialog = false },
                             onConfirm = { name, date, isLunar, id ->
                                 scope.launch {
-                                    val entity = BirthdayEntity(id = id, name = name, dateStr = date, isLunar = isLunar)
+                                    // 如果是编辑现有记录 (id != 0)，我们需要保留它原来的 isPinned 状态
+                                    // 但是 editingEntity 可能是旧的，我们需要确保拿到最新的状态
+                                    // 这里简单处理：如果 initialEntity 不为空且 id 匹配，则沿用其 isPinned
+                                    // 更好的做法是从数据库查，或者由 UI 传递当前的 isPinned
+                                    val currentPinned = if (id != 0 && editingEntity?.id == id) editingEntity?.isPinned ?: false else false
+                                    
+                                    val entity = BirthdayEntity(
+                                        id = id, 
+                                        name = name, 
+                                        dateStr = date, 
+                                        isLunar = isLunar, 
+                                        isPinned = currentPinned
+                                    )
                                     if (id == 0) dao.insert(entity) else dao.update(entity)
                                 }
                                 showDialog = false

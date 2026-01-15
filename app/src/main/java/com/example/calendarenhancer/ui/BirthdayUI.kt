@@ -4,6 +4,7 @@ import android.app.DatePickerDialog
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -17,6 +18,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,15 +43,33 @@ import kotlin.math.roundToInt
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun BirthdayItem(entity: BirthdayEntity, onDelete: () -> Unit, onEdit: () -> Unit) {
+fun BirthdayItem(
+    entity: BirthdayEntity, 
+    onDelete: () -> Unit, 
+    onEdit: () -> Unit,
+    onTogglePin: () -> Unit
+) {
     val context = LocalContext.current
+    val currentOnTogglePin by rememberUpdatedState(onTogglePin)
     
-    // 滑动偏移量状态
     var offsetX by remember { mutableStateOf(0f) }
     val animatedOffsetX by animateFloatAsState(targetValue = offsetX)
     
-    // 按钮栏的宽度（大约 3 个按钮的宽度）
-    val actionWidth = -550f 
+    val rightActionWidth = -550f 
+    val triggerThreshold = 200f  
+    val isTriggered = offsetX > triggerThreshold
+
+    // 背景颜色动画
+    val backgroundColor by animateColorAsState(
+        targetValue = when {
+            // 触发阈值后：
+            // 置顶(Primary) vs 取消置顶(深灰色，保证可见度)
+            offsetX > triggerThreshold -> if (entity.isPinned) Color.DarkGray else MaterialTheme.colorScheme.primary
+            // 滑动过程中：
+            offsetX > 0 -> if (entity.isPinned) Color.LightGray else MaterialTheme.colorScheme.primaryContainer
+            else -> Color.Transparent
+        }
+    )
 
     val days = remember(entity.dateStr, entity.isLunar) { calculateDays(entity.dateStr, entity.isLunar) }
     val displayDate = remember(entity.dateStr, entity.isLunar) {
@@ -56,7 +77,7 @@ fun BirthdayItem(entity: BirthdayEntity, onDelete: () -> Unit, onEdit: () -> Uni
     }
     
     val syncAction = {
-        offsetX = 0f // 点击后收回
+        offsetX = 0f 
         syncToCalendar(context, entity)
     }
 
@@ -100,52 +121,72 @@ fun BirthdayItem(entity: BirthdayEntity, onDelete: () -> Unit, onEdit: () -> Uni
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
-        // 背景层：操作按钮
+        // --- 背景层：右滑触发区 ---
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(backgroundColor, MaterialTheme.shapes.medium)
+                .padding(start = 24.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            if (offsetX > 50f) {
+                val icon = if (entity.isPinned) Icons.Outlined.PushPin else Icons.Filled.PushPin
+                
+                // 颜色逻辑：
+                // 取消置顶时：白色图标
+                // 置顶时：触发后反白，未触发主色
+                val tint = if (entity.isPinned) {
+                    Color.White
+                } else {
+                    if (isTriggered) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
+                }
+
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = tint,
+                    modifier = Modifier.size(if (isTriggered) 32.dp else 24.dp)
+                )
+            }
+        }
+
+        // --- 背景层：左滑按钮 ---
         Row(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .padding(end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(0.dp) // 取消 spacedBy，改为手动微调
+            horizontalArrangement = Arrangement.spacedBy(0.dp)
         ) {
-            IconButton(onClick = {
-                showSyncConfirm = true
-            }) {
+            IconButton(onClick = { showSyncConfirm = true }) {
                 Icon(Icons.Default.Refresh, "同步", tint = MaterialTheme.colorScheme.primary)
             }
-            IconButton(
-                modifier = Modifier.size(40.dp), // 限制按钮大小使之更紧凑
-                onClick = {
-                    offsetX = 0f
-                    onEdit()
-                }
-            ) {
+            IconButton(modifier = Modifier.size(40.dp), onClick = { offsetX = 0f; onEdit() }) {
                 Icon(Icons.Default.Edit, "编辑", tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            IconButton(
-                modifier = Modifier.size(40.dp),
-                onClick = {
-                    offsetX = 0f
-                    onDelete()
-                }
-            ) {
+            IconButton(modifier = Modifier.size(40.dp), onClick = { offsetX = 0f; onDelete() }) {
                 Icon(Icons.Default.Delete, "删除", tint = MaterialTheme.colorScheme.error)
             }
         }
 
-        // 前景层：生日卡片
+        // --- 前景层：生日卡片 ---
         Card(
             modifier = Modifier
                 .offset { IntOffset(animatedOffsetX.roundToInt(), 0) }
                 .pointerInput(Unit) {
                     detectHorizontalDragGestures(
+                        onDragCancel = { offsetX = 0f },
                         onDragEnd = {
-                            // 松手时判断：如果滑动超过一半宽度，则吸附到打开状态，否则弹回
-                            offsetX = if (offsetX < actionWidth / 2) actionWidth else 0f
+                            if (offsetX > triggerThreshold) {
+                                currentOnTogglePin() // 触发置顶/取消置顶
+                            } else if (offsetX < rightActionWidth / 2) {
+                                offsetX = rightActionWidth
+                                return@detectHorizontalDragGestures
+                            }
+                            offsetX = 0f 
                         },
                         onHorizontalDrag = { change, dragAmount ->
-                            // 限制滑动范围，只能向左滑，且不能滑出按钮区域太多
-                            val newOffset = (offsetX + dragAmount).coerceIn(actionWidth - 50f, 0f)
+                            val newOffset = (offsetX + dragAmount).coerceIn(rightActionWidth - 50f, triggerThreshold + 100f)
                             offsetX = newOffset
                         }
                     )
@@ -154,13 +195,26 @@ fun BirthdayItem(entity: BirthdayEntity, onDelete: () -> Unit, onEdit: () -> Uni
                     onClick = { 
                         if (offsetX != 0f) offsetX = 0f else onEdit() 
                     }
-                )
+                ),
+            colors = if (entity.isPinned) {
+                CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            } else {
+                CardDefaults.cardColors()
+            }
         ) {
             Box(Modifier.padding(16.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    if (entity.isPinned) {
+                        Icon(
+                            imageVector = Icons.Filled.PushPin,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp).padding(end = 8.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     Column(Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(entity.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -205,7 +259,13 @@ fun BirthdayItem(entity: BirthdayEntity, onDelete: () -> Unit, onEdit: () -> Uni
 }
 
 @Composable
-fun BirthdayListScreen(modifier: Modifier, list: List<BirthdayEntity>, onDelete: (BirthdayEntity) -> Unit, onEdit: (BirthdayEntity) -> Unit) {
+fun BirthdayListScreen(
+    modifier: Modifier, 
+    list: List<BirthdayEntity>, 
+    onDelete: (BirthdayEntity) -> Unit, 
+    onEdit: (BirthdayEntity) -> Unit,
+    onTogglePin: (BirthdayEntity) -> Unit
+) {
     var entityToDelete by remember { mutableStateOf<BirthdayEntity?>(null) }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -214,7 +274,8 @@ fun BirthdayListScreen(modifier: Modifier, list: List<BirthdayEntity>, onDelete:
                 BirthdayItem(
                     entity = entity, 
                     onDelete = { entityToDelete = entity }, 
-                    onEdit = { onEdit(entity) }
+                    onEdit = { onEdit(entity) },
+                    onTogglePin = { onTogglePin(entity) }
                 )
             }
         }

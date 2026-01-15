@@ -7,5 +7,6 @@ data class BirthdayEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val name: String,
     val dateStr: String,
-    val isLunar: Boolean = false
+    val isLunar: Boolean = false,
+    val isPinned: Boolean = false
 )
