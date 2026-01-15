@@ -104,25 +104,31 @@ fun BirthdayItem(entity: BirthdayEntity, onDelete: () -> Unit, onEdit: () -> Uni
         Row(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
-                .padding(end = 8.dp),
+                .padding(end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(0.dp) // 取消 spacedBy，改为手动微调
         ) {
             IconButton(onClick = {
                 showSyncConfirm = true
             }) {
                 Icon(Icons.Default.Refresh, "同步", tint = MaterialTheme.colorScheme.primary)
             }
-            IconButton(onClick = {
-                offsetX = 0f
-                onEdit()
-            }) {
+            IconButton(
+                modifier = Modifier.size(40.dp), // 限制按钮大小使之更紧凑
+                onClick = {
+                    offsetX = 0f
+                    onEdit()
+                }
+            ) {
                 Icon(Icons.Default.Edit, "编辑", tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            IconButton(onClick = {
-                offsetX = 0f
-                onDelete()
-            }) {
+            IconButton(
+                modifier = Modifier.size(40.dp),
+                onClick = {
+                    offsetX = 0f
+                    onDelete()
+                }
+            ) {
                 Icon(Icons.Default.Delete, "删除", tint = MaterialTheme.colorScheme.error)
             }
         }
