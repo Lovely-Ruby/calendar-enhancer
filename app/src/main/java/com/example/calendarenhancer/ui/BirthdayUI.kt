@@ -49,17 +49,37 @@ fun BirthdayItem(entity: BirthdayEntity, onDelete: () -> Unit, onEdit: () -> Uni
             .combinedClickable(onClick = onEdit, onLongClick = { showMenu = true })
     ) {
         Box(Modifier.padding(16.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column {
-                    Row {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                         Text(entity.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                         if (entity.isLunar) {
-                            Text(" (阴历)", style = MaterialTheme.typography.bodySmall, color = Color.Magenta)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("(阴历)", style = MaterialTheme.typography.bodySmall, color = Color.Magenta)
                         }
                     }
-                    Text("日期: $displayDate", color = Color.Gray)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("日期: $displayDate", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
                 }
-                Text("${days}天后", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.headlineSmall)
+                Column(
+                    horizontalAlignment = androidx.compose.ui.Alignment.End,
+                    modifier = Modifier.padding(start = 8.dp)
+                ) {
+                    Text(
+                        text = "$days",
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "天后",
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             }
             DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                 DropdownMenuItem(text = { Text("删除", color = Color.Red) }, onClick = { onDelete(); showMenu = false })
