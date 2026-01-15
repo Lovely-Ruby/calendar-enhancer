@@ -57,9 +57,9 @@ class MainActivity : ComponentActivity() {
                         AddOrEditDialog(
                             initialEntity = editingEntity,
                             onDismiss = { showDialog = false },
-                            onConfirm = { name, date, id ->
+                            onConfirm = { name, date, isLunar, id ->
                                 scope.launch {
-                                    val entity = BirthdayEntity(id = id, name = name, dateStr = date)
+                                    val entity = BirthdayEntity(id = id, name = name, dateStr = date, isLunar = isLunar)
                                     if (id == 0) dao.insert(entity) else dao.update(entity)
                                 }
                                 showDialog = false

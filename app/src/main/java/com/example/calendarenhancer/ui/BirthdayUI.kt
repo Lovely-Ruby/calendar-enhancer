@@ -20,6 +20,8 @@ import android.app.DatePickerDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
+import com.nlf.calendar.Lunar
+import com.nlf.calendar.Solar
 
 // --- 3. UI 组件 ---
 @OptIn(ExperimentalFoundationApi::class)
@@ -28,7 +30,7 @@ import androidx.compose.material3.OutlinedTextField
 fun BirthdayItem(entity: BirthdayEntity, onDelete: () -> Unit, onEdit: () -> Unit) {
     var showMenu by remember { mutableStateOf(false) }
     // 计算倒计时天数
-    val days = remember(entity.dateStr) { calculateDays(entity.dateStr) }
+    val days = remember(entity.dateStr, entity.isLunar) { calculateDays(entity.dateStr, entity.isLunar) }
 
     Card(
         modifier = Modifier
@@ -39,7 +41,12 @@ fun BirthdayItem(entity: BirthdayEntity, onDelete: () -> Unit, onEdit: () -> Uni
         Box(Modifier.padding(16.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column {
-                    Text(entity.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Row {
+                        Text(entity.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        if (entity.isLunar) {
+                            Text(" (阴历)", style = MaterialTheme.typography.bodySmall, color = Color.Magenta)
+                        }
+                    }
                     Text("日期: ${entity.dateStr}", color = Color.Gray)
                 }
                 Text("${days}天后", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.headlineSmall)
@@ -61,9 +68,10 @@ fun BirthdayListScreen(modifier: Modifier, list: List<BirthdayEntity>, onDelete:
 }
 
 @Composable
-fun AddOrEditDialog(initialEntity: BirthdayEntity?, onDismiss: () -> Unit, onConfirm: (String, String, Int) -> Unit) {
+fun AddOrEditDialog(initialEntity: BirthdayEntity?, onDismiss: () -> Unit, onConfirm: (String, String, Boolean, Int) -> Unit) {
     var name by remember { mutableStateOf(initialEntity?.name ?: "") }
     var date by remember { mutableStateOf(initialEntity?.dateStr ?: "") }
+    var isLunar by remember { mutableStateOf(initialEntity?.isLunar ?: false) }
     val context = LocalContext.current
 
     AlertDialog(
@@ -73,6 +81,11 @@ fun AddOrEditDialog(initialEntity: BirthdayEntity?, onDismiss: () -> Unit, onCon
             Column {
                 OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("姓名") })
                 Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Checkbox(checked = isLunar, onCheckedChange = { isLunar = it })
+                    Text("阴历生日")
+                }
+                Spacer(Modifier.height(8.dp))
                 Button(onClick = {
                     val cal = Calendar.getInstance()
                     DatePickerDialog(context, { _, _, m, d -> date = String.format("%02d-%02d", m + 1, d) },
@@ -81,17 +94,38 @@ fun AddOrEditDialog(initialEntity: BirthdayEntity?, onDismiss: () -> Unit, onCon
             }
         },
         confirmButton = {
-            TextButton(onClick = { if(name.isNotBlank() && date.isNotBlank()) onConfirm(name, date, initialEntity?.id ?: 0) }) { Text("确定") }
+            TextButton(onClick = { if(name.isNotBlank() && date.isNotBlank()) onConfirm(name, date, isLunar, initialEntity?.id ?: 0) }) { Text("确定") }
         }
     )
 }
 
-fun calculateDays(dateStr: String): Int {
+fun calculateDays(dateStr: String, isLunar: Boolean): Int {
     return try {
         val today = LocalDate.now()
         val parts = dateStr.split("-")
-        var target = LocalDate.of(today.year, parts[0].toInt(), parts[1].toInt())
-        if (target.isBefore(today)) target = target.plusYears(1)
-        ChronoUnit.DAYS.between(today, target).toInt()
+        val month = parts[0].toInt()
+        val day = parts[1].toInt()
+
+        val targetDate = if (!isLunar) {
+            var target = LocalDate.of(today.year, month, day)
+            if (target.isBefore(today)) target = target.plusYears(1)
+            target
+        } else {
+            val currentYear = today.year
+            // 尝试今年的阴历生日
+            val lunarThisYear = Lunar.fromYmd(currentYear, month, day)
+            val solarThisYear = lunarThisYear.solar
+            var target = LocalDate.of(solarThisYear.year, solarThisYear.month, solarThisYear.day)
+            
+            if (target.isBefore(today)) {
+                // 如果今年的已经过了，计算明年的
+                val lunarNextYear = Lunar.fromYmd(currentYear + 1, month, day)
+                val solarNextYear = lunarNextYear.solar
+                target = LocalDate.of(solarNextYear.year, solarNextYear.month, solarNextYear.day)
+            }
+            target
+        }
+        
+        ChronoUnit.DAYS.between(today, targetDate).toInt()
     } catch (e: Exception) { 0 }
 }

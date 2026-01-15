@@ -6,5 +6,6 @@ import androidx.room.PrimaryKey
 data class BirthdayEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val name: String,
-    val dateStr: String
+    val dateStr: String,
+    val isLunar: Boolean = false
 )
