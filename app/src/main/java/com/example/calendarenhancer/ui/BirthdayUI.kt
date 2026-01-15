@@ -57,8 +57,18 @@ fun BirthdayItem(entity: BirthdayEntity, onDelete: () -> Unit, onEdit: () -> Uni
                     Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                         Text(entity.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                         if (entity.isLunar) {
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("(阴历)", style = MaterialTheme.typography.bodySmall, color = Color.Magenta)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(
+                                color = MaterialTheme.colorScheme.tertiaryContainer,
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp)
+                            ) {
+                                Text(
+                                    text = "阴历",
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.height(4.dp))
