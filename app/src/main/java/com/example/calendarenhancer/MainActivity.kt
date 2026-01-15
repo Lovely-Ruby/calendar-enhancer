@@ -138,7 +138,8 @@ class MainActivity : ComponentActivity() {
                                 onThemeChange = { 
                                     isDarkTheme = it
                                     sharedPref.edit().putBoolean("is_dark_theme", it).apply()
-                                }
+                                },
+                                dao = dao
                             )
                         }
                     }

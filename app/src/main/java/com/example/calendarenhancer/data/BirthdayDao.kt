@@ -15,6 +15,9 @@ interface BirthdayDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(person: BirthdayEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(persons: List<BirthdayEntity>)
+
     @Delete
     suspend fun delete(person: BirthdayEntity)
 
