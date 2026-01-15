@@ -1,10 +1,10 @@
 package com.example.calendarenhancer
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -30,10 +31,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        
+        val sharedPref = getSharedPreferences("settings", Context.MODE_PRIVATE)
+        
         setContent {
-            // 主题状态：初始跟随系统
-            val systemInDark = isSystemInDarkTheme()
-            var isDarkTheme by remember { mutableStateOf(systemInDark) }
+            // 主题状态：默认亮色 (false)，从 SharedPreferences 读取
+            var isDarkTheme by remember { 
+                mutableStateOf(sharedPref.getBoolean("is_dark_theme", false)) 
+            }
 
             CalendarEnhancerTheme(darkTheme = isDarkTheme) {
                 val navController = rememberNavController()
@@ -64,12 +69,32 @@ class MainActivity : ComponentActivity() {
                             NavigationBarItem(
                                 icon = { Icon(Icons.Default.List, "列表") },
                                 selected = currentRoute == "list" || currentRoute == null,
-                                onClick = { navController.navigate("list") }
+                                onClick = {
+                                    if (currentRoute != "list") {
+                                        navController.navigate("list") {
+                                            popUpTo(navController.graph.findStartDestination().id) {
+                                                saveState = true
+                                            }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
+                                    }
+                                }
                             )
                             NavigationBarItem(
                                 icon = { Icon(Icons.Default.Settings, "设置") },
                                 selected = currentRoute == "settings",
-                                onClick = { navController.navigate("settings") }
+                                onClick = {
+                                    if (currentRoute != "settings") {
+                                        navController.navigate("settings") {
+                                            popUpTo(navController.graph.findStartDestination().id) {
+                                                saveState = true
+                                            }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
+                                    }
+                                }
                             )
                         }
                     },
@@ -102,7 +127,10 @@ class MainActivity : ComponentActivity() {
                         composable("settings") {
                             SettingsScreen(
                                 isDarkTheme = isDarkTheme,
-                                onThemeChange = { isDarkTheme = it }
+                                onThemeChange = { 
+                                    isDarkTheme = it
+                                    sharedPref.edit().putBoolean("is_dark_theme", it).apply()
+                                }
                             )
                         }
                     }
