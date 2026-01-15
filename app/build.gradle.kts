@@ -71,4 +71,5 @@ dependencies {
     // 还需要这个来支持 Compose 的状态收集
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     implementation("androidx.compose.runtime:runtime-livedata:1.6.0")
+    implementation("androidx.navigation:navigation-compose:2.8.0")
 }
