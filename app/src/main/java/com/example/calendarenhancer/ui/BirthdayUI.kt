@@ -84,6 +84,13 @@ fun BirthdayItem(
     val displayDate = remember(entity.dateStr, entity.isLunar) {
         if (entity.isLunar) CalendarUtil.formatLunarDate(entity.dateStr) else entity.dateStr
     }
+
+    val age = remember(entity.dateStr, nextSolarDate) {
+        try {
+            val birthYear = entity.dateStr.split("-")[0].toInt()
+            nextSolarDate.year - birthYear
+        } catch (e: Exception) { -1 }
+    }
     
     val syncAction = {
         offsetX = 0f 
@@ -141,7 +148,7 @@ fun BirthdayItem(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 16.dp, vertical = 4.dp)
     ) {
         // --- 背景层：右滑触发区 ---
         Box(
@@ -239,18 +246,25 @@ fun BirthdayItem(
                     }
                     Column(Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(entity.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            val displayName = if (days == 0) "${entity.name} 🎂" else entity.name
+                            Text(
+                                text = displayName, 
+                                style = MaterialTheme.typography.titleLarge, 
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
                             if (entity.isLunar) {
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Surface(
-                                    color = MaterialTheme.colorScheme.tertiaryContainer,
-                                    shape = RoundedCornerShape(6.dp)
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    shape = RoundedCornerShape(4.dp)
                                 ) {
                                     Text(
                                         text = "阴历",
                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
                             }
@@ -267,17 +281,30 @@ fun BirthdayItem(
                             days < 7 -> MaterialTheme.colorScheme.tertiary
                             else -> MaterialTheme.colorScheme.primary
                         }
-                        Text(
-                            text = "$days",
-                            color = highlightColor,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = if (days == 0) "今天" else "天后",
-                            color = highlightColor,
-                            style = MaterialTheme.typography.bodySmall
-                        )
+                        // 右上：数字 + 天后/今天
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(
+                                text = "$days",
+                                color = highlightColor,
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(
+                                text = if (days == 0) "今天" else "天后",
+                                color = highlightColor,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(bottom = 4.dp) // 让文字对齐数字底部
+                            )
+                        }
+                        // 右下：岁数
+                        if (age >= 0) {
+                            Text(
+                                text = "${age}岁",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
                     }
                 }
             }

@@ -96,22 +96,29 @@ class MainActivity : ComponentActivity() {
                         CenterAlignedTopAppBar(
                             title = { Text(if (currentRoute == "settings") "设置" else "岁岁念") },
                             actions = {
-                                if (currentRoute == "list" || currentRoute == null) {
-                                    IconButton(onClick = { isSortedByDays = !isSortedByDays }) {
-                                        Icon(
-                                            imageVector = Icons.Default.Sort, 
-                                            contentDescription = "排序",
-                                            tint = if (isSortedByDays) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                                        )
-                                    }
-                                    IconButton(onClick = {
-                                        editingEntity = null
-                                        showDialog = true
-                                    }) {
-                                        Icon(Icons.Default.Add, contentDescription = "添加")
-                                    }
-                                }
-                            }
+                                                                if (currentRoute == "list" || currentRoute == null) {
+                                                                    IconButton(onClick = { 
+                                                                        isSortedByDays = !isSortedByDays 
+                                                                        android.widget.Toast.makeText(
+                                                                            context, 
+                                                                            if (isSortedByDays) "按剩余天数排序" else "按添加顺序排序", 
+                                                                            android.widget.Toast.LENGTH_SHORT
+                                                                        ).show()
+                                                                    }) {
+                                                                                                                    Icon(
+                                                                                                                        imageVector = Icons.Default.Sort, 
+                                                                                                                        contentDescription = "排序",
+                                                                                                                        tint = if (isSortedByDays) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                                                                                                    )
+                                                                                                                }
+                                                                        
+                                                                                                                IconButton(onClick = {
+                                                                                                                    editingEntity = null
+                                                                                                                    showDialog = true
+                                                                                                                }) {
+                                                                                                                    Icon(Icons.Default.Add, contentDescription = "添加")
+                                                                                                                }
+                                                                                                            }                            }
                         )
                     },
                     bottomBar = {
@@ -170,8 +177,9 @@ class MainActivity : ComponentActivity() {
                                     scope.launch {
                                         val newStatus = !entity.isPinned
                                         dao.updatePinStatus(entity.id, newStatus)
-                                        // 添加提示
-                                        android.widget.Toast.makeText(context, if (newStatus) "已置顶" else "已取消置顶", android.widget.Toast.LENGTH_SHORT).show()
+                                        // 添加提示，包含姓名
+                                        val message = if (newStatus) "${entity.name} 已置顶" else "${entity.name} 已取消置顶"
+                                        android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
                                     }
                                 }
                             )
