@@ -231,9 +231,12 @@ fun BirthdayItem(
                 CardDefaults.cardColors()
             }
         ) {
-            Box(Modifier.padding(16.dp)) {
+            Box(modifier = Modifier.fillMaxWidth()) {
+                // 内容区域带 Padding
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (entity.isPinned) {
@@ -295,7 +298,7 @@ fun BirthdayItem(
                                 Text(
                                     text = "$days",
                                     color = highlightColor,
-                                    style = MaterialTheme.typography.headlineLarge, // 进一步放大数字
+                                    style = MaterialTheme.typography.headlineLarge,
                                     fontWeight = FontWeight.ExtraBold
                                 )
                                 Spacer(modifier = Modifier.width(2.dp))
@@ -303,7 +306,7 @@ fun BirthdayItem(
                                     text = "天",
                                     color = highlightColor,
                                     style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.padding(bottom = 6.dp) // 适配更大的数字
+                                    modifier = Modifier.padding(bottom = 6.dp)
                                 )
                             } else {
                                 Text(
@@ -316,6 +319,33 @@ fun BirthdayItem(
                             }
                         }
                     }
+                }
+                
+                // --- 进度条移动到这里：卡片的绝对底部边缘 ---
+                val progress = remember(days) {
+                    val p = (30 - days).coerceIn(0, 30) / 30f
+                    if (days == 0) 1f else p.coerceAtLeast(0.02f) 
+                }
+                
+                val highlightColor = when {
+                    days < 3 -> MaterialTheme.colorScheme.error
+                    days < 7 -> MaterialTheme.colorScheme.tertiary
+                    else -> MaterialTheme.colorScheme.primary
+                }
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(progress)
+                            .fillMaxHeight()
+                            .background(highlightColor)
+                    )
                 }
             }
         }
