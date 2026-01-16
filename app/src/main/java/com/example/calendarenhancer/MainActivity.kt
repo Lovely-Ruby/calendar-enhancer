@@ -59,7 +59,17 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     topBar = {
                         CenterAlignedTopAppBar(
-                            title = { Text(if (currentRoute == "settings") "设置" else "岁岁念") }
+                            title = { Text(if (currentRoute == "settings") "设置" else "岁岁念") },
+                            actions = {
+                                if (currentRoute == "list" || currentRoute == null) {
+                                    IconButton(onClick = {
+                                        editingEntity = null
+                                        showDialog = true
+                                    }) {
+                                        Icon(Icons.Default.Add, contentDescription = "添加")
+                                    }
+                                }
+                            }
                         )
                     },
                     bottomBar = {
@@ -96,15 +106,6 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                             )
-                        }
-                    },
-                    floatingActionButton = {
-                        // 仅在列表页显示悬浮按钮
-                        if (currentRoute == "list" || currentRoute == null) {
-                            FloatingActionButton(onClick = {
-                                editingEntity = null
-                                showDialog = true
-                            }) { Icon(Icons.Default.Add, "添加") }
                         }
                     }
                 ) { innerPadding ->

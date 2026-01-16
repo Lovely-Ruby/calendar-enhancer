@@ -299,14 +299,17 @@ fun BirthdayListScreen(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "还没有添加任何人的生日记录呢\n点击右下角的“+”按钮，记下每一个重要的日子吧",
+                    text = "还没有添加任何人的生日记录呢\n点击屏幕右上角的“+”按钮，记下每一个重要的日子吧",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
             }
         } else {
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 16.dp)
+            ) {
                 items(list, key = { it.id }) { entity ->
                     BirthdayItem(
                         entity = entity, 
