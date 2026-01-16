@@ -262,15 +262,20 @@ fun BirthdayItem(
                         horizontalAlignment = Alignment.End,
                         modifier = Modifier.padding(start = 8.dp)
                     ) {
+                        val highlightColor = when {
+                            days < 3 -> MaterialTheme.colorScheme.error
+                            days < 7 -> MaterialTheme.colorScheme.tertiary
+                            else -> MaterialTheme.colorScheme.primary
+                        }
                         Text(
                             text = "$days",
-                            color = MaterialTheme.colorScheme.primary,
+                            color = highlightColor,
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "天后",
-                            color = MaterialTheme.colorScheme.primary,
+                            text = if (days == 0) "今天" else "天后",
+                            color = highlightColor,
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
