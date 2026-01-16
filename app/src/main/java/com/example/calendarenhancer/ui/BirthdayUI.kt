@@ -73,13 +73,16 @@ fun BirthdayItem(
         }
     )
 
-    val nextSolarDate = remember(entity.dateStr, entity.isLunar) { getNextOccurrence(entity.dateStr, entity.isLunar) }
+    val nextSolarDate = remember(entity.dateStr, entity.isLunar, today) { 
+        CalendarUtil.getNextBirthdayDate(entity.dateStr, entity.isLunar, today) ?: today 
+    }
     
-    // 使用传入的 today
-    val days = remember(nextSolarDate, today) { ChronoUnit.DAYS.between(today, nextSolarDate).toInt() }
+    val days = remember(nextSolarDate, today) { 
+        ChronoUnit.DAYS.between(today, nextSolarDate).toInt() 
+    }
     
     val displayDate = remember(entity.dateStr, entity.isLunar) {
-        if (entity.isLunar) formatLunarDate(entity.dateStr) else entity.dateStr
+        if (entity.isLunar) CalendarUtil.formatLunarDate(entity.dateStr) else entity.dateStr
     }
     
     val syncAction = {
@@ -281,29 +284,13 @@ fun BirthdayItem(
 fun BirthdayListScreen(
     modifier: Modifier, 
     list: List<BirthdayEntity>, 
+    today: LocalDate, // 改为由外部传入
     onDelete: (BirthdayEntity) -> Unit, 
     onEdit: (BirthdayEntity) -> Unit,
     onTogglePin: (BirthdayEntity) -> Unit
 ) {
     var entityToDelete by remember { mutableStateOf<BirthdayEntity?>(null) }
     
-    // 创建一个受状态驱动的“今天”日期
-    var today by remember { mutableStateOf(LocalDate.now()) }
-    
-    // 监听生命周期，回到前台时刷新日期
-    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-                today = LocalDate.now()
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
-
     Box(modifier = modifier.fillMaxSize()) {
         if (list.isEmpty()) {
             // ... (empty state UI)
@@ -433,62 +420,12 @@ fun AddOrEditDialog(initialEntity: BirthdayEntity?, onDismiss: () -> Unit, onCon
 }
 
 fun formatLunarDate(dateStr: String): String {
-    return try {
-        val parts = dateStr.split("-")
-        val year = parts[0].toInt()
-        val month = parts[1].toInt()
-        val day = parts[2].toInt()
-        
-        val lunar = Lunar.fromYmd(year, month, day)
-        "${lunar.yearInChinese}(${lunar.yearInGanZhi}${lunar.yearShengXiao})年${lunar.monthInChinese}月${lunar.dayInChinese}"
-    } catch (e: Exception) {
-        dateStr
-    }
-}
-
-fun calculateDays(dateStr: String, isLunar: Boolean): Int {
-    return try {
-        val targetDate = getNextOccurrence(dateStr, isLunar)
-        ChronoUnit.DAYS.between(LocalDate.now(), targetDate).toInt()
-    } catch (e: Exception) { 0 }
-}
-
-fun getNextOccurrence(dateStr: String, isLunar: Boolean): LocalDate {
-    val today = LocalDate.now()
-    val parts = dateStr.split("-")
-    val month = if (parts.size == 3) parts[1].toInt() else parts[0].toInt()
-    val day = if (parts.size == 3) parts[2].toInt() else parts[1].toInt()
-
-    return if (!isLunar) {
-        var target = LocalDate.of(today.year, month, day)
-        if (target.isBefore(today)) target = target.plusYears(1)
-        target
-    } else {
-        val currentYear = today.year
-        
-        fun getValidLunar(y: Int, m: Int, d: Int): Lunar {
-            val lunarYear = LunarYear.fromYear(y)
-            val lunarMonth = lunarYear.getMonth(m)
-            val monthDays = lunarMonth?.dayCount ?: 30
-            return Lunar.fromYmd(y, m, if (d > monthDays) monthDays else d)
-        }
-
-        val lunarThisYear = getValidLunar(currentYear, month, day)
-        val solarThisYear = lunarThisYear.solar
-        var target = LocalDate.of(solarThisYear.year, solarThisYear.month, solarThisYear.day)
-        
-        if (target.isBefore(today)) {
-            val lunarNextYear = getValidLunar(currentYear + 1, month, day)
-            val solarNextYear = lunarNextYear.solar
-            target = LocalDate.of(solarNextYear.year, solarNextYear.month, solarNextYear.day)
-        }
-        target
-    }
+    return CalendarUtil.formatLunarDate(dateStr)
 }
 
 private fun syncToCalendar(context: android.content.Context, entity: BirthdayEntity) {
     try {
-        val targetDate = getNextOccurrence(entity.dateStr, entity.isLunar)
+        val targetDate = CalendarUtil.getNextBirthdayDate(entity.dateStr, entity.isLunar) ?: return
         val startTime = targetDate.atTime(9, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
         
         CalendarUtil.addCalendarEvent(

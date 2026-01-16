@@ -27,9 +27,8 @@ object CalendarUtil {
         }
     }
 
-    fun getNextBirthdayDate(dateStr: String, isLunar: Boolean): LocalDate? {
+    fun getNextBirthdayDate(dateStr: String, isLunar: Boolean, today: LocalDate = LocalDate.now()): LocalDate? {
         return try {
-            val today = LocalDate.now()
             val parts = dateStr.split("-")
             // Handle cases where year might be missing or included.
             // Assuming format YYYY-MM-DD based on existing code logic.
@@ -66,9 +65,9 @@ object CalendarUtil {
         }
     }
 
-    fun calculateDays(dateStr: String, isLunar: Boolean): Int {
-        val targetDate = getNextBirthdayDate(dateStr, isLunar) ?: return 0
-        return ChronoUnit.DAYS.between(LocalDate.now(), targetDate).toInt()
+    fun calculateDays(dateStr: String, isLunar: Boolean, today: LocalDate = LocalDate.now()): Int {
+        val targetDate = getNextBirthdayDate(dateStr, isLunar, today) ?: return 0
+        return ChronoUnit.DAYS.between(today, targetDate).toInt()
     }
 
     // 获取系统默认的主日历 ID

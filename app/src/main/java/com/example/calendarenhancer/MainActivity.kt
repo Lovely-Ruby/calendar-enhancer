@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -26,6 +27,9 @@ import com.example.calendarenhancer.ui.*
 import com.example.calendarenhancer.ui.theme.CalendarEnhancerTheme
 import kotlinx.coroutines.launch
 
+import com.example.calendarenhancer.util.CalendarUtil
+import java.time.LocalDate
+
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,6 +44,23 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(sharedPref.getBoolean("is_dark_theme", false)) 
             }
 
+            // 创建一个受状态驱动的“今天”日期
+            var today by remember { mutableStateOf(LocalDate.now()) }
+            
+            // 监听生命周期，回到前台时刷新日期
+            val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+            DisposableEffect(lifecycleOwner) {
+                val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                    if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                        today = LocalDate.now()
+                    }
+                }
+                lifecycleOwner.lifecycle.addObserver(observer)
+                onDispose {
+                    lifecycleOwner.lifecycle.removeObserver(observer)
+                }
+            }
+
             CalendarEnhancerTheme(darkTheme = isDarkTheme) {
                 val navController = rememberNavController()
                 val context = LocalContext.current
@@ -48,6 +69,20 @@ class MainActivity : ComponentActivity() {
                 val scope = rememberCoroutineScope()
 
                 val rawList by dao.getAll().collectAsState(initial = emptyList())
+                var isSortedByDays by remember { mutableStateOf(true) } // 默认按天数排序
+                
+                // 处理排序逻辑
+                val displayList = remember(rawList, isSortedByDays, today) {
+                    if (isSortedByDays) {
+                        rawList.sortedWith(
+                            compareByDescending<BirthdayEntity> { it.isPinned }
+                                .thenBy { CalendarUtil.calculateDays(it.dateStr, it.isLunar, today) }
+                        )
+                    } else {
+                        rawList // 默认由 DAO 排序 (Pinned -> ID)
+                    }
+                }
+
                 var showDialog by remember { mutableStateOf(false) }
                 var editingEntity by remember { mutableStateOf<BirthdayEntity?>(null) }
 
@@ -62,6 +97,13 @@ class MainActivity : ComponentActivity() {
                             title = { Text(if (currentRoute == "settings") "设置" else "岁岁念") },
                             actions = {
                                 if (currentRoute == "list" || currentRoute == null) {
+                                    IconButton(onClick = { isSortedByDays = !isSortedByDays }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Sort, 
+                                            contentDescription = "排序",
+                                            tint = if (isSortedByDays) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
                                     IconButton(onClick = {
                                         editingEntity = null
                                         showDialog = true
@@ -117,7 +159,8 @@ class MainActivity : ComponentActivity() {
                         composable("list") {
                             BirthdayListScreen(
                                 modifier = Modifier.fillMaxSize(),
-                                list = rawList,
+                                list = displayList, // 使用排序后的列表
+                                today = today, // 传递最新的日期
                                 onDelete = { entity -> scope.launch { dao.delete(entity) } },
                                 onEdit = { entity ->
                                     editingEntity = entity
