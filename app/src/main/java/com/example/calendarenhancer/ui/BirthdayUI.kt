@@ -281,29 +281,39 @@ fun BirthdayItem(
                             days < 7 -> MaterialTheme.colorScheme.tertiary
                             else -> MaterialTheme.colorScheme.primary
                         }
-                        // 右上：数字 + 天后/今天
-                        Row(verticalAlignment = Alignment.Bottom) {
-                            Text(
-                                text = "$days",
-                                color = highlightColor,
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.width(2.dp))
-                            Text(
-                                text = if (days == 0) "今天" else "天后",
-                                color = highlightColor,
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(bottom = 4.dp) // 让文字对齐数字底部
-                            )
-                        }
-                        // 右下：岁数
+
                         if (age >= 0) {
                             Text(
-                                text = "${age}岁",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                style = MaterialTheme.typography.labelSmall
+                                text = if (days == 0) "祝 ${age} 岁生日" else "距离 ${age} 岁生日还有",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                             )
+                        }
+
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            if (days > 0) {
+                                Text(
+                                    text = "$days",
+                                    color = highlightColor,
+                                    style = MaterialTheme.typography.headlineLarge, // 进一步放大数字
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Text(
+                                    text = "天",
+                                    color = highlightColor,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(bottom = 6.dp) // 适配更大的数字
+                                )
+                            } else {
+                                Text(
+                                    text = "快乐! 🎂",
+                                    color = highlightColor,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
                         }
                     }
                 }
