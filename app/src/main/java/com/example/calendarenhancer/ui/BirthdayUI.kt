@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -269,14 +270,51 @@ fun BirthdayListScreen(
     var entityToDelete by remember { mutableStateOf<BirthdayEntity?>(null) }
 
     Box(modifier = modifier.fillMaxSize()) {
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
-            items(list, key = { it.id }) { entity ->
-                BirthdayItem(
-                    entity = entity, 
-                    onDelete = { entityToDelete = entity }, 
-                    onEdit = { onEdit(entity) },
-                    onTogglePin = { onTogglePin(entity) }
+        if (list.isEmpty()) {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(32.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Surface(
+                    modifier = Modifier.size(120.dp),
+                    shape = RoundedCornerShape(60.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.DateRange,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = "岁岁平安，从记录开始",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "还没有添加任何人的生日记录呢\n点击右下角的“+”按钮，记下每一个重要的日子吧",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+        } else {
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                items(list, key = { it.id }) { entity ->
+                    BirthdayItem(
+                        entity = entity, 
+                        onDelete = { entityToDelete = entity }, 
+                        onEdit = { onEdit(entity) },
+                        onTogglePin = { onTogglePin(entity) }
+                    )
+                }
             }
         }
 
