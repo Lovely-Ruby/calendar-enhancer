@@ -11,9 +11,12 @@ composeBom = "2024.04.01"
 ksp = "2.0.0-1.0.21" # 必须和你的 kotlin 2.0.0 匹配
 lunarJava = "1.7.7"
 gson = "2.10.1"
+retrofit = "2.9.0"
 
 [libraries]
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
+retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
+converter-gson = { group = "com.squareup.retrofit2", name = "converter-gson", version.ref = "retrofit" }
 lunar-java = { group = "cn.6tail", name = "lunar", version.ref = "lunarJava" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }

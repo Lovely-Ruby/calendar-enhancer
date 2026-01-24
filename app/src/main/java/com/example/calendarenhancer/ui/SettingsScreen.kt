@@ -23,6 +23,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+import androidx.compose.material.icons.filled.SystemUpdate
+import com.example.calendarenhancer.util.UpdateManager
+import com.example.calendarenhancer.data.GithubRelease
+import com.example.calendarenhancer.BuildConfig
+
 @Composable
 fun SettingsScreen(
     isDarkTheme: Boolean,
@@ -78,6 +83,78 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+
+    // 更新相关状态
+    var isChecking by remember { mutableStateOf(false) }
+    var updateInfo by remember { mutableStateOf<GithubRelease?>(null) }
+    var showUpdateDialog by remember { mutableStateOf(false) }
+    var downloadProgress by remember { mutableStateOf<Float?>(null) }
+
+    if (showUpdateDialog && updateInfo != null) {
+        AlertDialog(
+            onDismissRequest = { showUpdateDialog = false },
+            title = { Text("发现新版本: ${updateInfo?.tagName}") },
+            text = {
+                Column {
+                    Text("更新内容:")
+                    Text(updateInfo?.body ?: "暂无描述", style = MaterialTheme.typography.bodySmall)
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showUpdateDialog = false
+                        val asset = updateInfo?.assets?.firstOrNull { it.name.endsWith(".apk") }
+                        if (asset != null) {
+                            scope.launch {
+                                try {
+                                    downloadProgress = 0f
+                                    UpdateManager.downloadApk(
+                                        context,
+                                        asset.downloadUrl,
+                                        asset.name
+                                    ).collect { progress ->
+                                        downloadProgress = progress
+                                    }
+                                    downloadProgress = null // 完成
+                                } catch (e: Exception) {
+                                    downloadProgress = null
+                                    Toast.makeText(context, "下载失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } else {
+                            Toast.makeText(context, "未找到安装包", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                ) {
+                    Text("下载更新")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUpdateDialog = false }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+
+    if (downloadProgress != null) {
+        AlertDialog(
+            onDismissRequest = { /* 禁止关闭 */ },
+            title = { Text("正在下载...") },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    LinearProgressIndicator(
+                        progress = { downloadProgress!! },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("${(downloadProgress!! * 100).toInt()}%")
+                }
+            },
+            confirmButton = {}
+        )
     }
 
     Column(
@@ -150,6 +227,56 @@ fun SettingsScreen(
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(top = 8.dp),
             color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+
+        Text(
+            text = "关于与更新",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedButton(
+            onClick = {
+                if (!isChecking) {
+                    isChecking = true
+                    scope.launch {
+                        val release = UpdateManager.checkUpdate()
+                        isChecking = false
+                        if (release != null) {
+                            updateInfo = release
+                            showUpdateDialog = true
+                        } else {
+                            Toast.makeText(context, "当前已是最新版本", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            },
+            enabled = !isChecking,
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(12.dp)
+        ) {
+            if (isChecking) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("正在检测...")
+            } else {
+                Icon(Icons.Default.SystemUpdate, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("检查更新")
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Text(
+            text = "当前版本: ${BuildConfig.VERSION_NAME}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.align(Alignment.CenterHorizontally)
         )
     }
 }
