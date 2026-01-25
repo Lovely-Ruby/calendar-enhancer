@@ -31,6 +31,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.example.calendarenhancer.data.BirthdayEntity
 import com.example.calendarenhancer.util.CalendarUtil
@@ -252,7 +253,8 @@ fun BirthdayItem(
                             val displayName = if (days == 0) "${entity.name} 🎂" else entity.name
                             Text(
                                 text = displayName, 
-                                style = MaterialTheme.typography.titleLarge, 
+                                style = MaterialTheme.typography.titleMedium, 
+                                fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.weight(1f, fill = false)
                             )
@@ -266,6 +268,7 @@ fun BirthdayItem(
                                         text = "阴历",
                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                         style = MaterialTheme.typography.labelSmall,
+                                        fontSize = 10.sp,
                                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -273,7 +276,7 @@ fun BirthdayItem(
                             }
                         }
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text("日期: $displayDate", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+                        Text(displayDate, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                     }
                     Column(
                         horizontalAlignment = Alignment.End,
@@ -289,6 +292,7 @@ fun BirthdayItem(
                             Text(
                                 text = if (days == 0) "祝 ${age} 岁生日" else "距离 ${age} 岁生日还有",
                                 style = MaterialTheme.typography.labelSmall,
+                                fontSize = 10.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                             )
                         }
@@ -298,7 +302,8 @@ fun BirthdayItem(
                                 Text(
                                     text = "$days",
                                     color = highlightColor,
-                                    style = MaterialTheme.typography.headlineLarge,
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontSize = 28.sp,
                                     fontWeight = FontWeight.ExtraBold
                                 )
                                 Spacer(modifier = Modifier.width(2.dp))
@@ -306,6 +311,7 @@ fun BirthdayItem(
                                     text = "天",
                                     color = highlightColor,
                                     style = MaterialTheme.typography.bodySmall,
+                                    fontSize = 11.sp,
                                     modifier = Modifier.padding(bottom = 6.dp)
                                 )
                             } else {
@@ -313,6 +319,7 @@ fun BirthdayItem(
                                     text = "快乐! 🎂",
                                     color = highlightColor,
                                     style = MaterialTheme.typography.titleLarge,
+                                    fontSize = 20.sp,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(top = 4.dp)
                                 )
